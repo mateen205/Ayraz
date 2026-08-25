@@ -1,6 +1,5 @@
-"use client";
 
-import Image from "next/image";
+"use client";
 
 type Props = {
   label: string;
@@ -21,29 +20,33 @@ export default function ImageUploader({
     const formData = new FormData();
     formData.append("file", file);
 
-    const res = await fetch("/api/upload", {
-      method: "POST",
-      body: formData,
-    });
+    try {
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (data.success) {
-      onUpload(data.path);
-    } else {
+      if (data.success) {
+        onUpload(data.path);
+      } else {
+        alert(data.message || "Upload failed.");
+      }
+    } catch (error) {
+      console.error("Upload error:", error);
       alert("Upload failed.");
     }
   }
 
   return (
     <div className="space-y-3">
-
       <label className="block font-semibold">
         {label}
       </label>
 
       {value ? (
-        <Image
+        <img
           src={value}
           alt={label}
           width={220}
@@ -58,11 +61,10 @@ export default function ImageUploader({
 
       <input
         type="file"
-        accept="image/*"
+        accept="image/jpeg,image/png,image/webp"
         onChange={upload}
         className="block w-full text-sm file:mr-4 file:rounded-lg file:border-0 file:bg-white file:px-4 file:py-2 file:text-black hover:file:bg-zinc-200"
       />
-
     </div>
   );
 }
