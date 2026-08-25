@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { writeFile } from "fs/promises";
-import path from "path";
+import { put } from "@vercel/blob";
 import { verifyAdminSession } from "@/app/lib/auth";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
 
-const ALLOWED_TYPES = new Map([
-  ["image/jpeg", "jpg"],
-  ["image/png", "png"],
-  ["image/webp", "webp"],
+const ALLOWED_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
 ]);
 
 export async function POST(req: NextRequest) {
@@ -16,7 +15,6 @@ export async function POST(req: NextRequest) {
     // ================================
     // ADMIN AUTHENTICATION
     // ================================
-
     const token = req.cookies.get("admin_session")?.value;
 
     if (!token) {
@@ -48,9 +46,7 @@ export async function POST(req: NextRequest) {
     // ================================
     // READ UPLOAD
     // ================================
-
     const data = await req.formData();
-
     const file = data.get("file");
 
     if (!(file instanceof File)) {
@@ -66,7 +62,6 @@ export async function POST(req: NextRequest) {
     // ================================
     // FILE SIZE
     // ================================
-
     if (file.size <= 0) {
       return NextResponse.json(
         {
@@ -90,10 +85,7 @@ export async function POST(req: NextRequest) {
     // ================================
     // FILE TYPE
     // ================================
-
-    const extension = ALLOWED_TYPES.get(file.type);
-
-    if (!extension) {
+    if (!ALLOWED_TYPES.has(file.type)) {
       return NextResponse.json(
         {
           success: false,
@@ -104,31 +96,24 @@ export async function POST(req: NextRequest) {
     }
 
     // ================================
-    // SAFE SERVER-GENERATED FILENAME
+    // UPLOAD TO VERCEL BLOB
     // ================================
-
-    const filename = `${Date.now()}-${crypto.randomUUID()}.${extension}`;
-
-    const filepath = path.join(
-      process.cwd(),
-      "public",
-      "images",
-      "products",
-      filename
+    const blob = await put(
+      `products/${Date.now()}-${crypto.randomUUID()}`,
+      file,
+      {
+        access: "public",
+        addRandomSuffix: true,
+        contentType: file.type,
+      }
     );
 
     // ================================
-    // SAVE FILE
+    // RETURN PUBLIC IMAGE URL
     // ================================
-
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-
-    await writeFile(filepath, buffer);
-
     return NextResponse.json({
       success: true,
-      path: `/images/products/${filename}`,
+      path: blob.url,
     });
   } catch (error) {
     console.error("Upload error:", error);
@@ -138,9 +123,7 @@ export async function POST(req: NextRequest) {
         success: false,
         message: "Upload failed.",
       },
-      {
-        status: 500,
-      }
+      { status: 500 }
     );
   }
 }
