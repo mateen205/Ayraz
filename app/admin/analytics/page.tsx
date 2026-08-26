@@ -9,6 +9,7 @@ export default function AnalyticsPage() {
     async function load() {
       const res = await fetch("/api/admin/analytics");
       const json = await res.json();
+      console.log("ANALYTICS DATA:", json);
       setData(json);
     }
 
